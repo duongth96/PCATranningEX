@@ -1,17 +1,17 @@
 if not exists (select 1 from sys.databases where name = 'QLBH')
     begin 
         create database QLBH
-        -- on primary(
-        --     size=5,
-        --     maxsize=50,
-        --     filegrowth=5,
-        --     filename = '\mnt\DATA\DB\qlbh.mdf',
-        --     name = 'QLBH'
-        -- )
+        on primary(
+            size=5,
+            maxsize=50,
+            filegrowth=5,
+            filename = 'D:\DB\qlbh.mdf',
+            name = 'QLBH'
+        )
     end
 
-use QLBH
-use master
+use QLBH 
+
 drop database QLBH
 -- drop table VatTu,NhaCungCap,DonDatHang,ChiTietDonHang,PhieuNhapHang,ChiTietPNHang,PhieuXuat,ChiTietPNHang
 
@@ -256,8 +256,6 @@ delete DonDatHang
         select MaDDHang from ChiTietDonHang group by MaDDHang
     )
 
-select * from DonDatHang
-
 -- lấy danh sách đơn nhập hàng từ 1/1/2018 -> 1/6/2018
 select * from DonDatHang where NgayDat between '1/1/2018' and '1/6/2018'
 -- 6: Thống kê số lượng mặt hàng theo nhà cung cấp
@@ -310,32 +308,33 @@ select * from DonDatHang where MaDDHang not in(select MaDDHang from PhieuNhapHan
 
 -- 14:Lấy thông tin nhà cung cấp có nhiều đơn đặt hàng nhất
 select top 1 tem.SLD as [Số đơn],NhaCungCap.* from NhaCungCap 
-    inner join (
-        select MaNCCap as IDNCC,count(MaNCCap) as SLD from DonDatHang group by MaNCCap
-    ) as tem on NhaCungCap.MaNCCap=tem.IDNCC order by tem.SLD desc
+inner join (
+    select MaNCCap as IDNCC,count(MaNCCap) as SLD from DonDatHang group by MaNCCap
+) as tem on NhaCungCap.MaNCCap=tem.IDNCC order by tem.SLD desc
 
+select * from DonDatHang
 -- 15: Lấy thông tin vật tư được xuất bán nhiều nhất
 
 select tem.SLX as [Số lượng],VatTu.* from VatTu 
+inner join (
+    select MaVatTu as MVT_ID, Sum(SoLuongXuat) as SLX from ChiTietPXuat group by MaVatTu
+) as tem on VatTu.MaVatTu = tem.MVT_ID
+where tem.SLX = (
+    select top 1 tem.SLX as [số lượng] from VatTu 
     inner join (
         select MaVatTu as MVT_ID, Sum(SoLuongXuat) as SLX from ChiTietPXuat group by MaVatTu
-    ) as tem on VatTu.MaVatTu = tem.MVT_ID
-    where tem.SLX = (
-        select top 1 tem.SLX as [số lượng] from VatTu 
-        inner join (
-            select MaVatTu as MVT_ID, Sum(SoLuongXuat) as SLX from ChiTietPXuat group by MaVatTu
-        ) as tem on VatTu.MaVatTu = tem.MVT_ID order by tem.SLX desc
-    )
+    ) as tem on VatTu.MaVatTu = tem.MVT_ID order by tem.SLX desc
+)
     
 -- 16: Tính tổng tiền của các đơn đặt hàng, đưa ra đơn đặt hàng có giá trị lớn nhất
 
 select DonDatHang.*,tem.Tien from DonDatHang inner join 
-    (
-        select MaDDHang,tem.Tien from PhieuNhapHang 
-        inner join (
-            select MaPNHang as PNH_ID, sum((SoLuongNhap * DonGiaNhap)) as Tien from ChiTietPNHang where MaPNHang in (select MaPNHang from PhieuNhapHang) group by MaPNHang
-        ) as tem on PhieuNhapHang.MaPNHang = tem.PNH_ID
-    ) as tem on DonDatHang.MaDDHang = tem.MaDDHang order by tem.Tien desc
+(
+    select MaDDHang,tem.Tien from PhieuNhapHang 
+    inner join (
+        select MaPNHang as PNH_ID, sum((SoLuongNhap * DonGiaNhap)) as Tien from ChiTietPNHang where MaPNHang in (select MaPNHang from PhieuNhapHang) group by MaPNHang
+    ) as tem on PhieuNhapHang.MaPNHang = tem.PNH_ID
+) as tem on DonDatHang.MaDDHang = tem.MaDDHang order by tem.Tien desc
 
 -- 17: Thống kê những đơn đặt hàng chưa đủ số lượng [tick]
 
@@ -343,9 +342,13 @@ select ChiTietDonHang.MaDDHang,ChiTietDonHang.MaVatTu,SoLuongDat,SoLuongNhap fro
 	select MaDDHang,ChiTietPNHang.MaPNHang,MaVatTu,SoLuongNhap 
 	from ChiTietPNHang inner join PhieuNhapHang 
 	on ChiTietPNHang.MaPNHang=PhieuNhapHang.MaPNHang
-)[tem] where ChiTietDonHang.MaDDHang=tem.MaDDHang and ChiTietDonHang.
-MaVatTu=tem.MaVatTu and SoLuongDat>SoLuongNhap
+)[tem] where ChiTietDonHang.MaDDHang=tem.MaDDHang 
+    and ChiTietDonHang.MaVatTu=tem.MaVatTu 
+    and SoLuongDat>SoLuongNhap
 order by ChiTietDonHang.MaDDHang asc
+
+select * from ChiTietDonHang
+select * from ChiTietPNHang
 
 --------------------------------------------------------------------------
 -- ex2 (13/08/18)--
@@ -362,7 +365,7 @@ create view vw_DDH_TongSLDatNhap as
 		on ChiTietPNHang.MaPNHang=PhieuNhapHang.MaPNHang
 	)[tem] where ChiTietDonHang.MaDDHang=tem.MaDDHang and ChiTietDonHang.
 	MaVatTu=tem.MaVatTu and SoLuongDat<=SoLuongNhap
-	order by ChiTietDonHang.MaDDHang asc
+	--order by ChiTietDonHang.MaDDHang asc
 -- 20:
     --TODO
 create view vw_DonDH_DaNhapDu as
@@ -378,19 +381,19 @@ create view vw_DonDH_DaNhapDu as
 	)[tem] where ChiTietDonHang.MaDDHang=tem.MaDDHang and ChiTietDonHang.
 	MaVatTu=tem.MaVatTu
 	group by ChiTietDonHang.MaDDHang
-	order by ChiTietDonHang.MaDDHang asc
+	--order by ChiTietDonHang.MaDDHang asc
 -- 21:
 create view vw_TongNhap AS 
-    select concat(cast(year(NgayNhap) as char),cast(month(NgayNhap) as char)) as ngay,MaVatTu,sum(SoLuongNhap) as SoLuong
+    select concat(year(NgayNhap),'-',month(NgayNhap)) as ngay,MaVatTu,sum(SoLuongNhap) as SoLuong
     from ChiTietPNHang 
     inner join PhieuNhapHang on ChiTietPNHang.MaPNHang = PhieuNhapHang.MaPNHang
-    group by concat(cast(year(NgayNhap) as char),cast(month(NgayNhap) as char)),MaVatTu
+    group by MaVatTu,concat(year(NgayNhap),'-',month(NgayNhap))
 
 -- 22:
 create view vw_TongXuat as 
-    select cast(year(NgayXuat) as char) as nam,MaVatTu,sum(SoLuongXuat) as SoLuong from ChiTietPXuat 
+    select year(NgayXuat) as nam,MaVatTu,sum(SoLuongXuat) as SoLuong from ChiTietPXuat 
     inner join PhieuXuat on ChiTietPXuat.MaPhieuXuat=PhieuXuat.MaPhieuXuat
-    group by cast(year(NgayXuat) as char),MaVatTu
+    group by MaVatTu,year(NgayXuat)
 
 -- ex2 update (15/08/18)
 -- 23. Tạo Stored procedure (SP) cho biết tổng số lượng cuối của vật tư với mã vật tư là tham số vào.
@@ -417,9 +420,13 @@ sp_TongTienXuatVatTu 'tv001'
 create procedure sp_TongSoLuongDatHang
     @DonDatHang nvarchar(50)
 AS
-    select sum(SoLuongDat)[So luong dat] from ChiTietDonHang where MaDDHang = @DonDatHang
+begin
+    select @DonDatHang [DonDatHang],sum(SoLuongDat)[So luong dat] from ChiTietDonHang where MaDDHang = @DonDatHang
+end 
 
-sp_TongSoLuongDatHang 'ddh001'
+sp_TongSoLuongDatHang 'ddh002'
+
+select * from ChiTietDonHang where MaDDHang = 'ddh001'
 
 -- 26, 27:
     -- sp them don hang
@@ -462,31 +469,31 @@ alter table ChiTietPNHang
     -- function tinh ThanhTien
 create function fn_ThanhTien ( @DonGia float(3),@SoLuong int)
 returns float(3) as
-    begin 
-        DECLARE @Tong float(3)
-        set @Tong = @DonGia*@SoLuong
-        return @Tong
-    end
+begin 
+    DECLARE @Tong float(3)
+    set @Tong = @DonGia*@SoLuong
+    return @Tong
+end
 
     -- tu dong tinh ThanhTien trong ChiTietPhieuNhap
 create trigger tg_TinhTongTien on ChiTietPNHang for INSERT
 as
-    begin
-        DECLARE @DonGia float(3) = (
-            select ChiTietPNHang.DonGiaNhap 
-            from ChiTietPNHang,inserted
-            where ChiTietPNHang.MaVatTu = inserted.MaVatTu and ChiTietPNHang.MaPNHang = inserted.MaPNHang
-        )
-        DECLARE @SoLuong int = (
-            select ChiTietPNHang.SoLuongNhap 
-            from ChiTietPNHang,inserted
-            where ChiTietPNHang.MaVatTu = inserted.MaVatTu and ChiTietPNHang.MaPNHang = inserted.MaPNHang
-        )
-        UPDATE ChiTietPNHang 
-            set ThanhTien = dbo.fn_ThanhTien(@DonGia,@SoLuong)
-            from inserted
-            where ChiTietPNHang.MaPNHang = inserted.MaPNHang and ChiTietPNHang.MaPNHang=inserted.MaPNHang
-    end
+begin
+    DECLARE @DonGia float(3) = (
+        select ChiTietPNHang.DonGiaNhap 
+        from ChiTietPNHang,inserted
+        where ChiTietPNHang.MaVatTu = inserted.MaVatTu and ChiTietPNHang.MaPNHang = inserted.MaPNHang
+    )
+    DECLARE @SoLuong int = (
+        select ChiTietPNHang.SoLuongNhap 
+        from ChiTietPNHang,inserted
+        where ChiTietPNHang.MaVatTu = inserted.MaVatTu and ChiTietPNHang.MaPNHang = inserted.MaPNHang
+    )
+    UPDATE ChiTietPNHang 
+        set ThanhTien = dbo.fn_ThanhTien(@DonGia,@SoLuong)
+        from inserted
+        where ChiTietPNHang.MaPNHang = inserted.MaPNHang and ChiTietPNHang.MaPNHang=inserted.MaPNHang
+end
 
     --insert into PhieuNhapHang values ('pnh010','23/07/2018','ddh012')
     -- test du lieu (1)
@@ -501,65 +508,68 @@ alter table VatTu
     -- thu tuc kiem tra TinhTrang of VatTu
 create PROCEDURE sp_TinhTrangVatTu
 AS
+begin
     select MaVatTu,(
         case
             when TinhTrang = 1 then 'Còn hàng'
             else 'Không còn hàng'
         end
     )[TrangThai] from VatTu
+end
 
+exec sp_TinhTrangVatTu
 -- 31: 
     -- trigger thay doi VatTu.TinhTrang khi ChiTietPNHang thay doi
 create trigger tg_insert_PhieuNhap on ChiTietPNHang for INSERT,UPDATE
 AS
-    BEGIN
-        DECLARE @SL_Nhap int =(
-            select sum(ChiTietPNHang.SoLuongNhap)
-            from ChiTietPNHang,inserted 
-            where ChiTietPNHang.MaVatTu = inserted.MaVatTu
-        )
-        DECLARE @SL_Xuat int = (
-            select sum(ChiTietPXuat.SoLuongXuat) 
-            from ChiTietPXuat,inserted
-            where ChiTietPXuat.MaVatTu = inserted.MaVatTu
-        )
-        if (@SL_Nhap>@SL_Xuat)
-            UPDATE VatTu 
-                set TinhTrang = 1
-            from inserted
-            where VatTu.MaVatTu = inserted.MaVatTu
-        if(@SL_Nhap<=@SL_Xuat)
-            UPDATE VatTu 
-                set TinhTrang = 0
-            from inserted
-            where VatTu.MaVatTu = inserted.MaVatTu
-    end
+BEGIN
+    DECLARE @SL_Nhap int =(
+        select sum(ChiTietPNHang.SoLuongNhap)
+        from ChiTietPNHang,inserted 
+        where ChiTietPNHang.MaVatTu = inserted.MaVatTu
+    )
+    DECLARE @SL_Xuat int = (
+        select sum(ChiTietPXuat.SoLuongXuat) 
+        from ChiTietPXuat,inserted
+        where ChiTietPXuat.MaVatTu = inserted.MaVatTu
+    )
+    if (@SL_Nhap>@SL_Xuat)
+        UPDATE VatTu 
+            set TinhTrang = 1
+        from inserted
+        where VatTu.MaVatTu = inserted.MaVatTu
+    if(@SL_Nhap<=@SL_Xuat)
+        UPDATE VatTu 
+            set TinhTrang = 0
+        from inserted
+        where VatTu.MaVatTu = inserted.MaVatTu
+end
 
     -- trigger thay doi VatTu.TinhTrang khi ChiTietPXuat thay doi
 create trigger tg_insert_PhieuXuat on ChiTietPXuat for INSERT,UPDATE
 as
-    BEGIN
-        DECLARE @SL_Nhap int =(
-            select sum(ChiTietPNHang.SoLuongNhap)
-            from ChiTietPNHang,inserted 
-            where ChiTietPNHang.MaVatTu = inserted.MaVatTu
-        )
-        DECLARE @SL_Xuat int = (
-            select sum(ChiTietPXuat.SoLuongXuat) 
-            from ChiTietPXuat,inserted
-            where ChiTietPXuat.MaVatTu = inserted.MaVatTu
-        )
-        if (@SL_Nhap>@SL_Xuat)
-            UPDATE VatTu 
-                set TinhTrang = 1
-            from inserted
-            where VatTu.MaVatTu = inserted.MaVatTu
-        if(@SL_Nhap<=@SL_Xuat)
-            UPDATE VatTu 
-                set TinhTrang = 1
-            from inserted
-            where VatTu.MaVatTu = inserted.MaVatTu
-    END
+BEGIN
+    DECLARE @SL_Nhap int =(
+        select sum(ChiTietPNHang.SoLuongNhap)
+        from ChiTietPNHang,inserted 
+        where ChiTietPNHang.MaVatTu = inserted.MaVatTu
+    )
+    DECLARE @SL_Xuat int = (
+        select sum(ChiTietPXuat.SoLuongXuat) 
+        from ChiTietPXuat,inserted
+        where ChiTietPXuat.MaVatTu = inserted.MaVatTu
+    )
+    if (@SL_Nhap>@SL_Xuat)
+        UPDATE VatTu 
+            set TinhTrang = 1
+        from inserted
+        where VatTu.MaVatTu = inserted.MaVatTu
+    if(@SL_Nhap<=@SL_Xuat)
+        UPDATE VatTu 
+            set TinhTrang = 1
+        from inserted
+        where VatTu.MaVatTu = inserted.MaVatTu
+END
     -- test du lieu (1)
     insert into ChiTietPNHang (MaPNHang,MaVatTu,SoLuongNhap,DonGiaNhap,ThanhTien) values ('pnh010','tv005',100,27.7,0) -- (1)
     delete ChiTietPNHang where MaPNHang = 'pnh010' and MaVatTu = 'tv005' -- (2)
@@ -567,45 +577,45 @@ as
 -- 32:
 create PROCEDURE sp_CapNhat_VatTu_TinhTrang
 AS  
+BEGIN
+
+    DECLARE @i int = 1
+    DECLARE @n int = (select Count(MaVatTu) from VatTu)
+    DECLARE @VatTu_ID nvarchar(50)
+
+    DECLARE @DonNhap_ID int
+    DECLARE @DonXuat_ID int
+    DECLARE @ab int
+
+    while @i <= @n
     BEGIN
+        --print @i
+        set @VatTu_ID = (
+            select MaVatTu from (
+                select ROW_NUMBER() Over(order by MaVatTu) as index_id,MaVatTu
+                from VatTu
+            ) as tem_VatTu 
+            where index_id = @i
+        )
+        set @DonNhap_ID = (select sum(SoLuongNhap) from ChiTietPNHang where MaVatTu = @VatTu_ID)
+        set @DonXuat_ID = (select sum(SoLuongXuat) from ChiTietPXuat where MaVatTu = @VatTu_ID)
 
-        DECLARE @i int = 1
-        DECLARE @n int = (select Count(MaVatTu) from VatTu)
-        DECLARE @VatTu_ID nvarchar(50)
-
-        DECLARE @DonNhap_ID int
-        DECLARE @DonXuat_ID int
-        DECLARE @ab int
-
-        while @i <= @n
+        if (@DonNhap_ID <= @DonXuat_ID) 
             BEGIN
-                --print @i
-                set @VatTu_ID = (
-                    select MaVatTu from (
-                        select ROW_NUMBER() Over(order by MaVatTu) as index_id,MaVatTu
-                        from VatTu
-                    ) as tem_VatTu 
-                    where index_id = @i
-                )
-                set @DonNhap_ID = (select sum(SoLuongNhap) from ChiTietPNHang where MaVatTu = @VatTu_ID)
-                set @DonXuat_ID = (select sum(SoLuongXuat) from ChiTietPXuat where MaVatTu = @VatTu_ID)
+                UPDATE VatTu
+                set TinhTrang = 0
+                where MaVatTu = @VatTu_ID
+            end
+        ELSE
+            BEGIN
+                UPDATE VatTu
+                set TinhTrang = 1
+                WHERE MaVatTu = @VatTu_ID
+            end
 
-                if (@DonNhap_ID <= @DonXuat_ID) 
-                    BEGIN
-                        UPDATE VatTu
-                        set TinhTrang = 0
-                        where MaVatTu = @VatTu_ID
-                    end
-                ELSE
-                    BEGIN
-                        UPDATE VatTu
-                        set TinhTrang = 1
-                        WHERE MaVatTu = @VatTu_ID
-                    end
-
-                set @i = @i + 1
-            END
-    end--32
+        set @i = @i + 1
+    END
+end--32
 
     -- test du lieu 
     insert into VatTu(MaVatTu,Ten,DonViTinh,TiLePhanTram) values('tv013',N'Điện thoại BlackBerry','Chiec',30.0)
@@ -618,7 +628,6 @@ AS
     insert into ChiTietPXuat (MaPhieuXuat,MaVatTu,SoLuongXuat,DonGia)
         VALUES ('px006','tv006',800,9)
     
-
     select MaVatTu,sum(SoLuongNhap) from ChiTietPNHang group by MaVatTu
 -- cau 33:
 
