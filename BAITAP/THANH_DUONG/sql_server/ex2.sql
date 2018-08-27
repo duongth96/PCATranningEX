@@ -270,9 +270,12 @@ select count(MaPNHang) as 'Số lượng mặt hàng' from ChiTietPNHang where M
 
 -- ex2 9/8/2018
 -- 7: kiểm tra mặt hàng nào được đặt hàng nhiều nhất
-select top 1 MaVatTu,sum(SoLuongDat)[SoLuong] from ChiTietDonHang
-    group by MaVatTu
-    order by sum(SoLuongDat) desc
+
+select MaVatTu,sum(SoLuongDat)[SoLuong] 
+from ChiTietDonHang
+group by MaVatTu
+having sum(SoLuongDat) = (select top 1 sum(SoLuongDat)[SoLuong] from ChiTietDonHang group by MaVatTu order by sum(SoLuongDat) desc)
+
 -- 8: tìm các mặt hàng bắt đầu bằng T
 select * from VatTu where Ten like 't%'
 -- 9: thống kê mặt hàng có số lượng đặt hàng nhiều hơn 1000
@@ -286,18 +289,18 @@ select * from VatTu where MaVatTu in (select MaVatTu from ChiTietPXuat) and MaVa
 -- EX2 10/08/2018
 -- 11: tạo bảng tồn kho
 if not exists (select 1 from sysobjects where name = 'TonKho')
-    begin 
-        create table TonKho(
-            NamThang char(50),
-            MaVatTu nvarchar(50),
-            SLDau int,
-            TongSLNhap int,
-            TongSLXuat int,
-            SLCuoi int,
-            constraint PK_TonKho PRIMARY key(NamThang,MaVatTu),
-            constraint FK_VatTu_TonKho foreign key (MaVatTu) references VatTu(MaVatTu)
-        )
-    end
+begin 
+    create table TonKho(
+        NamThang char(50),
+        MaVatTu nvarchar(50),
+        SLDau int,
+        TongSLNhap int,
+        TongSLXuat int,
+        SLCuoi int,
+        constraint PK_TonKho PRIMARY key(NamThang,MaVatTu),
+        constraint FK_VatTu_TonKho foreign key (MaVatTu) references VatTu(MaVatTu)
+    )
+end
 
 -- 12:
 alter TABLE TonKho
@@ -327,7 +330,6 @@ where tem.SLX = (
 )
     
 -- 16: Tính tổng tiền của các đơn đặt hàng, đưa ra đơn đặt hàng có giá trị lớn nhất
-
 select DonDatHang.*,tem.Tien from DonDatHang inner join 
 (
     select MaDDHang,tem.Tien from PhieuNhapHang 
@@ -342,12 +344,18 @@ select ChiTietDonHang.MaDDHang,ChiTietDonHang.MaVatTu,SoLuongDat,SoLuongNhap fro
 	select MaDDHang,ChiTietPNHang.MaPNHang,MaVatTu,SoLuongNhap 
 	from ChiTietPNHang inner join PhieuNhapHang 
 	on ChiTietPNHang.MaPNHang=PhieuNhapHang.MaPNHang
-)[tem] where ChiTietDonHang.MaDDHang=tem.MaDDHang 
+)[tem] 
+where ChiTietDonHang.MaDDHang=tem.MaDDHang
     and ChiTietDonHang.MaVatTu=tem.MaVatTu 
     and SoLuongDat>SoLuongNhap
 order by ChiTietDonHang.MaDDHang asc
 
+select * from DonDatHang
 select * from ChiTietDonHang
+
+select * from DonDatHang where MaDDHang not in (select MaDDHang from PhieuNhapHang)
+
+select * from PhieuNhapHang
 select * from ChiTietPNHang
 
 --------------------------------------------------------------------------
